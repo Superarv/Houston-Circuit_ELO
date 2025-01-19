@@ -1,77 +1,17 @@
 from openpyxl.workbook import Workbook
 from openpyxl import load_workbook
+import math
 
-teamCodeDict = {
-    "0":"Cypress Woods HH", 
-    "1":"Eisenhower Senior LR", 
-    "2":"Eisenhower Senior AH", 
-    "3":"Friendswood PS", 
-    "4":"Houston MacArthur CH", 
-    "5":"Woodlands College Park GN", 
-    "6":"Woodlands College Park MS", 
-    "7":"Woodlands College Park MR", 
-    "8":"Woodlands College Park OS",
-    "9":"Woodlands College Park LO",
-    "10":"Barbers Hill BR",
-    "11":"Elkins PS",
-    "12":"Heights DW",
-    "13":"Heights EL",
-    "14":"Heights FG",
-    "15":"Heights GP",
-    "16":"Katy Taylor WW",
-    "17":"Memorial CS",
-    "18":"Memorial GH",
-    "19":"Stephen F Austin JM",
-    "20":"Langham Creek BB",
-    "21":"Langham Creek CC",
-    "22":"Pasadena DD",
-    "23":"Kinkaid AK",
-    "24":"Kinkaid AS",
-    "25":"Caney Creek CI",
-    "26":"Caney Creek SW",
-    "27":"Woodlands College Park FO",
-    "28":"Tomball CP",
-    "29":"Tomball Memorial KM",
-    "30":"Dulles MS",
-    "31":"Dulles MN",
-    "32":"Dulles SY",
-    "33":"Elkins JJ",
-    "34":"Elkins GK",
-    "35":"LV Hightower NV",
-    "36":"LV Hightower AP",
-    "37":"LV Hightower JP",
-    "38":"Stephen F Austin KS",
-    "39": "Dulles CI",
-    "40":"Glenda Dawson JP",
-    "41":"Glenda Dawson LS",
-    "42":"Glenda Dawson MY",
-    "43":"Houston MacArthur GH",
-    "44":"Langham Creek BN",
-    "45":"Langham Creek EY",
-    "46":"Morton Ranch CR",
-    "47":"Tomball Memorial MT",
-    "48":"Memorial TT",
-    "49":"Morton Ranch MN",
-    "50":"Stephen F Austin HM",
-    "51":"Westside DD",
-    "52":"Westide GV",
-    "53":"Langham Creek BH",
-    "54":"Langham Creek ON",
-    "55":"Langham Creek TR",
-    "56":"Cypress Woods LR",
-    "57":"Cypress Woods AT",
-    "58":"Cypress Woods BC",
-    "59":"Cypress Woods GC",
-    "60":"Pasadena DY",
-    "61":"Langham Creek KW",
-    "62":"Heights PR"
-    }
+global eloRight
 
-def getTeamFullName(team):
-    team = str(team)
-    return teamCodeDict[team]
 
-def eloSetter(elo_A, elo_B, winner): # takes 2 ints and a bool
+
+biggestUpsets = {}
+
+
+eloRight = 0
+
+def eloSetter(elo_A, elo_B, winner,eloR): # takes 2 ints and a bool
     putDown_A = 0.05*(elo_A)
     putDown_B = 0.05*(elo_B)
 
@@ -86,6 +26,8 @@ def eloSetter(elo_A, elo_B, winner): # takes 2 ints and a bool
             else:
                 new_A = elo_A + (putDown_A - diff)
                 new_B = elo_B - (putDown_B - diff) 
+            
+            eloR += 1
         if winner == False: # upset scenario
             new_A = elo_A - putDown_A - diff
             new_B = elo_B + putDown_B + diff
@@ -103,6 +45,8 @@ def eloSetter(elo_A, elo_B, winner): # takes 2 ints and a bool
             else:
                 new_B = elo_B + (putDown_B - diff)
                 new_A = elo_A - (putDown_A - diff)
+
+            eloR += 1
     
     if elo_A == elo_B: # if initial elos are equal
         if winner == True:
@@ -111,8 +55,10 @@ def eloSetter(elo_A, elo_B, winner): # takes 2 ints and a bool
         if winner == False:
             new_A = elo_A - putDown_A
             new_B = elo_B + putDown_B
+        
+        eloR += 1
 
-    return (new_A, new_B)
+    return (new_A, new_B, eloR)
 
 def printRoundSummary(list):
     for item in list:
@@ -131,19 +77,38 @@ def powerRanking(list):
         topTenTeams.append(getTeamFullName(dup_list.index(elo)))
 
     for team in topTenTeams:
-        print(f'{topTenTeams.index(team) + 1}.) {team} ({topTenElos[topTenTeams.index(team)]})')
+        print(f'{topTenTeams.index(team) + 1}.) {team} ({math.trunc(topTenElos[topTenTeams.index(team)])})')
 
     
 
-    #for team in topTen:
-        #print(f'{topTen.index(team) + 1}.) {getTeamFullName(team)}')
 
+def getCode(teamName):
+    print(teamName)
+    for i in range(2, REGISTERED_TEAMS+2):
+        if (str(teamCodesWs.cell(row=i,column=1).value) == str(teamName)):
+            return int(teamCodesWs.cell(row=i,column=2).value)
+    
+    print("ERROR: THE TEAM NAME YOU QUERIED ISN'T IN THE CODES EXCEL SHEET")
+    return
+            
 
-## Code to connect excel sheet ##
+## Code to connect to tournament excel sheet ##
 
 wb = Workbook()
-wb = load_workbook('All-Rounds_DebateElo.xlsx')
+wb = load_workbook('JR-year-masterdata.xlsx')
 ws = wb['Sheet1']
+
+# connect to codesList excel sheet
+
+teamCodesWb = Workbook()
+teamCodesWb = load_workbook('TeamCodesWB.xlsx')
+teamCodesWs = teamCodesWb['Sheet1']
+
+REGISTERED_TEAMS = 0
+for row in teamCodesWs:
+    if not all([cell.value == None for cell in row]):
+        REGISTERED_TEAMS += 1
+#REGISTERED_TEAMS+=1
 
 # Number of rounds in current season #
 
@@ -153,8 +118,36 @@ for row in ws:
         rounds += 1
 rounds -= 1
 
-elos = [1000 for i in range(63)]
+elos = [1000 for i in range(REGISTERED_TEAMS-1)]
 #print(elos)
+def getTeamFullName(teamCode):
+    for i in range(2, REGISTERED_TEAMS+2):
+        if (teamCodesWs.cell(row=i,column=2).value == teamCode):
+            return str(teamCodesWs.cell(row=i,column=1).value)
+#def tourneyStats(tourney):
+    #roundRange = []
+
+    #for round in range(1, rounds+1):
+        #if str(ws.cell(row=round+1,column=1).value) == tourney:
+            #roundRange.append(round)
+    
+Elos_OAT_dict = {}
+
+def highestEloOAT():
+    printList = []
+    values = list(Elos_OAT_dict.values())
+
+    for i in range(5):
+        for code, elo in Elos_OAT_dict.items():  # for name, age in dictionary.iteritems():  (for Python 2.x)
+            if elo == max(values):
+                team_name = code
+        printList.append(f'{getTeamFullName(team_name)} ({max(values)})')
+        values.remove(max(values))
+
+    for item in printList:
+        item = f'{printList.index(item) + 1}.) ' + item
+        print(item)
+
 
 def printTeamRecord(teamName):
     teamCode = list(teamCodeDict.values()).index(teamName)
@@ -186,10 +179,13 @@ def printTeamRecord(teamName):
 
 round_summaries = ["[Tourney] [Round] : [AFF] vs. [NEG] --> [WINNER] [FINAL ELOS]"]
 
+## set individual elo
+
+
 for round in range(1, rounds+1):
-    team_aff = int(ws.cell(row=round+1,column=3).value)
-    team_neg = int(ws.cell(row=round+1,column=4).value)
-    team_winner = int(ws.cell(row=round+1,column=5).value)
+    team_aff = getCode(ws.cell(row=round+1,column=3).value)
+    team_neg = getCode(ws.cell(row=round+1,column=4).value)
+    team_winner = getCode(ws.cell(row=round+1,column=5).value)
     tourney = ws.cell(row=round+1,column=1).value
     roundLabel = ws.cell(row=round+1,column=2).value
 
@@ -201,7 +197,8 @@ for round in range(1, rounds+1):
     if team_winner == team_neg:
         winnerPC = False
 
-    new_aff_elo, new_neg_elo = eloSetter(aff_elo, neg_elo, winnerPC)
+    new_aff_elo, new_neg_elo, eloRight = eloSetter(aff_elo, neg_elo, winnerPC, eloRight)
+  
     
     elos[team_aff] = new_aff_elo
     elos[team_neg] = new_neg_elo
@@ -210,12 +207,31 @@ for round in range(1, rounds+1):
     neg_FULL = getTeamFullName(team_neg)
     winner_FULL = getTeamFullName(team_winner)
 
+    # add new elos to the OAT dictionary #
+
+    # AFF #
+    if team_aff in Elos_OAT_dict:
+        if new_aff_elo > Elos_OAT_dict[team_aff]:
+            Elos_OAT_dict[team_aff] = new_aff_elo
+    else:
+        Elos_OAT_dict[team_aff] = new_aff_elo
+    
+    # NEG #
+    if team_neg in Elos_OAT_dict:
+        if new_neg_elo > Elos_OAT_dict[team_neg]:
+            Elos_OAT_dict[team_neg] = new_neg_elo
+    else:
+        Elos_OAT_dict[team_neg] = new_neg_elo
+
     round_summaries.append(f'{tourney} {roundLabel} : {aff_FULL} ({aff_elo}) vs. {neg_FULL} ({neg_elo}) --> {winner_FULL} [AFF: ({new_aff_elo}) NEG: ({new_neg_elo})]')
+    
+#tourneyStats("Jordan")
 
 #powerRanking(elos)
 #printRoundSummary(round_summaries)
 while True:
-    user = input("\nranking, team, season-summary: ")
+    user = input("\nranking, team, season-summary, highest oat: ")
+    print(f'So far, the elo bot has correctly predicted the winner of a round {int((eloRight/rounds)*100)}% of the time!')
 
     if user == "ranking":
         powerRanking(elos)
@@ -225,3 +241,5 @@ while True:
         printRoundSummary(round_summaries)
     if user == "exit":
         exit()
+    if user == "highest oat":
+        highestEloOAT()
